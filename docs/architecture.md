@@ -28,15 +28,15 @@ Two organizing principles, and everything else follows from them:
 | Evaluation harness | Plain Python, single entrypoint (`python -m atlas.eval.run`) | Generates/loads synthetic scenarios, runs baseline vs. Atlas, emits the required metrics — runs entirely against the Engine, no Application-layer dependency needed to evaluate it. |
 | CI | GitHub Actions running the Engine's test suite on every push | The Engine's tests never require a live model or a GitHub token — see `tests/`, which use a `FakeBackend` and mocked HTTP for the local backend's own tests. |
 
-## Committed beyond today's build
+## Built beyond the original core (all ✅, see docs/requirements.md for status detail)
 
-**Weathering — not a new agent, the Cartographer on a schedule.** Re-verification of already-annexed facts (does the linked test still exist and pass, does the referenced code still exist) is the Cartographer invoked in a different mode via a scheduled job, updating a `last_verified`/confidence field in the fact's frontmatter. Deliberately reusing the existing role instead of adding a sixth agent.
+**Weathering — not a new agent, the Cartographer's evidence discipline on a schedule.** `src/atlas/weathering.py` re-checks already-annexed facts' evidence for continued existence (a `git cat-file -e` check for a `diff` reference, a file-existence check for a `test_result` reference) and marks a fact `DISPUTED` when its evidence has gone stale. Deliberately reuses the Cartographer's ground-truthing discipline instead of adding a sixth agent. Scope limit stated in the module itself: this checks existence, not whether a test still passes — a full re-run needs a CI job that knows the actual test framework.
 
-**Trade routes — annexation across a repo boundary, not a new protocol.** A fact marked `shareable: true` by a Surveyor-General during annexation becomes eligible for export as a fork-and-PR into another org's Atlas, using GitHub's existing cross-org fork/PR federation rather than inventing a bespoke sharing protocol.
+**Trade routes — annexation across a repo boundary, not a new protocol.** `GitHubAdapter.propose_trade_route` exports a fact marked `shareable=True` as a fork-and-PR into another org's Atlas, reusing GitHub's existing cross-org fork/PR model rather than inventing a bespoke sharing protocol. Refuses non-shareable facts outright (tested).
 
-**Ask-the-Atlas — a query tool, not a second source of truth.** Exposed as an MCP tool and a chat surface in the visualization frontend: natural-language question in, structured retrieval over the Pydantic fact store out, the configured LLM backend synthesizes the answer — and every answer must cite a Legend. No answer without provenance, enforcing ground-truthing at query time the same way it's enforced at write time.
+**Ask-the-Atlas — a query tool, not a second source of truth.** `src/atlas/ask.py`, exposed as the MCP tool `ask_the_atlas`: natural-language question in, the configured LLM backend answers using only the charted facts given, and must cite the fact ids it relied on. No answer without provenance, enforcing ground-truthing at query time the same way it's enforced at write time. A chat surface in the future visualization frontend would be a client of this same function, not a separate implementation.
 
-**CODEOWNERS-based Surveyor-General routing.** Annexation PRs parse the repo's existing `CODEOWNERS` (or a `.atlas/OWNERS.md` where fact categories don't map to file paths) and request review from the accountable human via GitHub's native reviewer-assignment API.
+**CODEOWNERS-based Surveyor-General routing.** `src/atlas/codeowners.py` parses a repo's `CODEOWNERS` file and maps a fact's subject to the owners who'd be responsible for the synthetic path `GitHubAdapter` writes it under. Not yet wired into `propose_annexation`'s live PR-open call (the routing logic is built and tested; connecting it to GitHub's reviewer-assignment API is next).
 
 **Visualization layer**
 

@@ -62,6 +62,37 @@ def format_annexation_pr_body(request: AnnexationRequest) -> str:
     return "\n".join(lines) + "\n"
 
 
+def format_trade_route_pr_title(fact: Fact) -> str:
+    return f"Trade route: {fact.subject}"
+
+
+def format_trade_route_pr_body(fact: Fact) -> str:
+    """Pure function: the PR body a receiving org's Surveyor-General
+    reviews. A trade-route PR is annexation with a wider audience, not a
+    different mechanism (docs/architecture.md, "Trade routes") — so it
+    carries the same evidence and confidence a normal annexation would."""
+    lines = [
+        "Proposed via a trade route from another Atlas workspace — a fact "
+        "explicitly marked shareable, exported the same way any annexation "
+        "would be reviewed here.",
+        "",
+        f"**Subject**: `{fact.subject}`  ",
+        f"**Original scope**: `{fact.scope}`  ",
+        f"**Confidence**: {fact.confidence:.2f}",
+        "",
+        "## Claim",
+        fact.claim,
+        "",
+        "## Evidence",
+    ]
+    if not fact.evidence:
+        lines.append("_None attached._")
+    else:
+        for ev in fact.evidence:
+            lines.append(f"- **{ev.kind.value}**: `{ev.reference}` — {ev.summary}".rstrip(" —"))
+    return "\n".join(lines) + "\n"
+
+
 class GitHubAdapter(SubstrateAdapter):
     """Charts and the Atlas live as directories of fact files inside a
     GitHub repository; annexation is a branch + PR against that repo."""
@@ -114,3 +145,34 @@ class GitHubAdapter(SubstrateAdapter):
         from pathlib import Path
 
         return read_all_facts(Path(scope) / self._facts_dir)
+
+    def propose_trade_route(self, fact: Fact, target_repo_full_name: str) -> AnnexationHandle:
+        """Export a shareable fact as a fork-and-PR into another
+        workspace's Atlas repository — reusing GitHub's existing
+        cross-org contribution model (fork, branch, PR) instead of a
+        bespoke sharing protocol. See docs/architecture.md, "Trade routes"."""
+        if not fact.shareable:
+            raise ValueError(f"Fact {fact.id} is not marked shareable — cannot open a trade route for it.")
+
+        target_repo = self._client.get_repo(target_repo_full_name)
+        fork = self._client.get_user().create_fork(target_repo)
+        branch_name = f"trade-route/{fact.id}"
+        default_branch = target_repo.default_branch
+        base_sha = fork.get_branch(default_branch).commit.sha
+        fork.create_git_ref(ref=f"refs/heads/{branch_name}", sha=base_sha)
+
+        path = f"{self._facts_dir}/{fact.subject.lower().replace(' ', '-')}-{fact.id}.md"
+        fork.create_file(
+            path=path,
+            message=format_trade_route_pr_title(fact),
+            content=fact_to_markdown(fact),
+            branch=branch_name,
+        )
+
+        pr = target_repo.create_pull(
+            title=format_trade_route_pr_title(fact),
+            body=format_trade_route_pr_body(fact),
+            head=f"{fork.owner.login}:{branch_name}",
+            base=default_branch,
+        )
+        return AnnexationHandle(url=pr.html_url, is_open=True)

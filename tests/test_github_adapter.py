@@ -1,4 +1,12 @@
-from atlas.adapters.github import format_annexation_pr_body, format_annexation_pr_title
+import pytest
+
+from atlas.adapters.github import (
+    GitHubAdapter,
+    format_annexation_pr_body,
+    format_annexation_pr_title,
+    format_trade_route_pr_body,
+    format_trade_route_pr_title,
+)
 from atlas.models import AnnexationRequest, AnnexationVerdict, BorderDispute, EvidenceKind, EvidenceRef, Fact, Tier
 
 
@@ -48,3 +56,21 @@ def test_pr_body_shows_border_dispute():
     body = format_annexation_pr_body(request)
     assert "Border dispute" in body
     assert "abc123" in body
+
+
+def test_trade_route_pr_title_and_body():
+    fact = _grounded_fact()
+    assert fact.subject in format_trade_route_pr_title(fact)
+
+    body = format_trade_route_pr_body(fact)
+    assert "trade route from another Atlas workspace" in body
+    assert fact.scope in body
+    assert "tests/test_load.py" in body
+
+
+def test_propose_trade_route_refuses_unshareable_fact():
+    fact = _grounded_fact()
+    assert fact.shareable is False
+    adapter = GitHubAdapter.__new__(GitHubAdapter)  # skip __init__, no real token/repo needed for this guard
+    with pytest.raises(ValueError, match="not marked shareable"):
+        adapter.propose_trade_route(fact, "some-org/some-repo")

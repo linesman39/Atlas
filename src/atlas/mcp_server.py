@@ -2,7 +2,7 @@
 Application").
 
 Exposes the engine to any MCP client — Claude Code today, in principle
-anything MCP-speaking tomorrow — as four tools. This module is a client
+anything MCP-speaking tomorrow — as five tools. This module is a client
 of the engine, same discipline as the GitHub adapter and the
 visualization layer: nothing here is a second source of truth, it reads
 and writes the same Chart/Atlas files atlas.storage already defines.
@@ -19,6 +19,7 @@ from mcp.server.mcpserver import MCPServer
 
 from atlas.agents.briefing_agent import draft_briefing_for_agent, draft_briefing_for_human
 from atlas.agents.field_agent import extract_field_notes
+from atlas.ask import ask
 from atlas.local_annex import annex_locally
 from atlas.models import EvidenceKind, EvidenceRef, Fact, Tier
 from atlas.storage import read_all_facts
@@ -29,7 +30,9 @@ server = MCPServer(
         "Atlas: ground-truthed, cross-repository memory for coding-agent sessions. "
         "Use record_field_note to log what happened in a session, propose_annexation to "
         "promote a ground-truthed fact into a Chart, query_chart to read what's already "
-        "known, and get_briefing to bootstrap a fresh session or hand off to a human."
+        "known, get_briefing to bootstrap a fresh session or hand off to a human, and "
+        "ask_the_atlas for a plain-language question answered with citations back to "
+        "specific charted facts."
     ),
 )
 
@@ -87,6 +90,14 @@ def get_briefing(chart_dir: str, audience: str = "human") -> str:
     if audience == "agent":
         return draft_briefing_for_agent(facts)
     return draft_briefing_for_human(facts)
+
+
+@server.tool()
+def ask_the_atlas(chart_dir: str, question: str) -> dict:
+    """Ask a plain-language question about what's charted at chart_dir.
+    The answer must cite the fact ids it relies on — ground-truthing
+    enforced at query time, not just at annexation time."""
+    return ask(question, Path(chart_dir))
 
 
 if __name__ == "__main__":

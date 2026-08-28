@@ -46,17 +46,28 @@ This bridges `docs/project-definition.md` (locked scope) to the technology decis
 - **Legibility**: Chart/Atlas contents and Expedition Briefings must be something a person would sign their name to, not an obvious raw dump.
 
 ### 8. MCP integration surface — ✅ built (`src/atlas/mcp_server.py`)
-- Exposes four tools: `record_field_note`, `propose_annexation`, `query_chart`, `get_briefing`.
+- Exposes five tools: `record_field_note`, `propose_annexation`, `query_chart`, `get_briefing`, `ask_the_atlas`.
 - `propose_annexation` uses local annexation (`local_annex.annex_locally`) by default — an MCP client gets a working, free annexation path with zero configuration, no GitHub required.
 - Tested in-process via `server.call_tool` (`tests/test_mcp_server.py`) — no live transport or live model needed to verify the wiring is correct.
 
+### 9. Weathering — ✅ built (`src/atlas/weathering.py`), honest scope limit
+- Re-checks every fact in a Chart against real evidence: a `diff` reference is checked via `git cat-file -e` against a real repo checkout; a `test_result` reference is checked for the referenced file's existence. A fact where every checkable piece of evidence has gone stale is marked `DISPUTED`, not silently dropped — a human still decides whether to retract it.
+- **Scope limit stated on purpose**: this checks whether evidence still *exists*, not whether a test still *passes* — a full re-run needs to know the project's test framework, which a generic library function can't. A CI-wired weathering job that actually re-executes tests and feeds the real pass/fail result in is future work; this is the framework-agnostic static check that works everywhere with zero configuration.
+
+### 10. Ask-the-Atlas — ✅ built (`src/atlas/ask.py`, exposed via MCP)
+- Answers a plain-language question using only the charted facts, and must cite the fact ids the answer relies on — ground-truthing enforced at query time, same discipline as at write time.
+
+### 11. CODEOWNERS-based Surveyor-General routing — ✅ built (`src/atlas/codeowners.py`)
+- Parses a `CODEOWNERS` file and maps a fact's subject to the same synthetic path `GitHubAdapter` writes it under, so routing matches what an annexation PR actually touches. Implements the common CODEOWNERS patterns (exact paths, directory prefixes, globs) via `fnmatch`, not GitHub's full pattern grammar — stated as a scope limit, not silently assumed complete.
+- Not yet wired into `GitHubAdapter.propose_annexation` itself (i.e. an annexation PR doesn't yet auto-request the routed reviewer) — the routing logic is built and tested; connecting it to the live PR-open call is next.
+
+### 12. Trade routes — ✅ built (`GitHubAdapter.propose_trade_route`), not live-tested
+- A fact must be marked `shareable=True` to be eligible — `propose_trade_route` refuses otherwise (tested). Reuses GitHub's own fork-and-PR cross-org contribution model rather than a bespoke sharing protocol: fork the target repo, branch, write the fact, open a PR back.
+- Same live-testing caveat as the rest of `GitHubAdapter`: the PR-formatting logic is unit-tested, the live fork/PR path is not exercised against real repositories in this codebase's own test suite.
+
 ## Explicitly not yet built (tracked in `docs/vision.md`)
 
-- Map-style visualization UI (time-lapse, fault lines, trust coloring).
-- Cross-organization trade routes.
-- Autonomous weathering / scheduled re-verification of already-annexed facts.
-- CODEOWNERS-style routing of annexation approval to a specific accountable Surveyor-General.
-- Ask-the-Atlas natural-language query interface (the MCP surface above is the operational tools; a conversational query layer on top is separate).
+- Map-style visualization UI (time-lapse, fault lines, trust coloring) — a genuinely separate stack (TypeScript/React/deck.gl), not yet started.
 
 These stay explicitly named as direction, not claimed capability.
 

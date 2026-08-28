@@ -2,7 +2,7 @@
 
 A team of agents that turns what a coding-agent session learns into durable, ground-truthed, cross-repository memory — instead of letting it die with the session.
 
-**Free and local by default, the way git is free and local.** The engine — the data model, the Chart/Atlas storage, and every agent — runs entirely on your machine against a free local model (Ollama), no account and no API key required. GitHub integration and a hosted-model backend are optional upgrades you can turn on, the same way GitHub is an optional, paid, hosted layer built on top of git rather than something git itself needs. See `docs/architecture.md`, "Engine vs. Application."
+**Atlas is what git is for code, but for the context and decisions behind it.** git does version control for source; Atlas does version control for the reasoning that produced it — and like git, that has to work standalone, on your machine, for free, with no account and no service to reach. The Engine (data model, Chart/Atlas storage, every agent, a local model via Ollama) *is* that local core — install it and it fully works, offline, at $0. GitHub integration, the MCP server, and the future visualization layer are the Application built on top, playing GitHub's role to Atlas's git: convenience, hosting, and collaboration layered on a core that never needed them to function. Verified, not asserted: the full test suite (71 tests) passes in a clean environment with only the Engine's three core dependencies installed — no GitHub token, no API key, no network call. See `docs/architecture.md`, "Engine vs. Application."
 
 Every fact Atlas records has to survive proof before it's trusted, and proof before it's trusted twice — before it moves from one session's Field Notes into a repository's Chart, and again before it moves from a Chart into the shared Atlas across a whole workspace. Nothing gets promoted on an LLM's say-so alone.
 
@@ -37,16 +37,16 @@ Atlas doesn't reuse git's terms (commit, branch, blame). It has its own, drawn f
 
 ## Status
 
-The Engine is built, tested, and working end to end: the data model, the Chart/Atlas storage format, the Cartographer's deterministic-first conflict check, all three LLM-backed roles (Field Agent, the Cartographer's escalation path, Briefing Agent), local adapter-free annexation, an evaluation harness with hand-labeled fixtures, and an MCP server exposing all of it as four tools — all running against a pluggable backend that defaults to a free local model. **57 tests pass, entirely offline, no live model, no network call, no cost to run.** Confirmed to install and pass this way from a genuinely clean environment (`pip install -e ".[dev,mcp]"` only — no GitHub or Claude extras).
+The Engine is built, tested, and working end to end: the data model, the Chart/Atlas storage format, the Cartographer's deterministic-first conflict check, all three LLM-backed roles (Field Agent, the Cartographer's escalation path, Briefing Agent), local adapter-free annexation, weathering (evidence re-verification), Ask-the-Atlas, CODEOWNERS-based reviewer routing, and an evaluation harness with hand-labeled fixtures — all running against a pluggable backend that defaults to a free local model. The Application layer has a working MCP server exposing five tools, and a `GitHubAdapter` (annexation-as-PR, plus trade routes for cross-org sharing) whose formatting logic is tested even though its live API path isn't yet exercised against a real repository. **71 tests pass, entirely offline, no live model, no network call, no cost to run.** Confirmed to install and pass this way from a genuinely clean environment (`pip install -e ".[dev,mcp]"` only — no GitHub or Claude extras).
 
-Still open: exercising `GitHubAdapter`'s live PR-opening path against a real repository, the visualization layer, and measuring what a real free local model actually achieves on the evaluation harness (no Ollama installation was available in the environment this was built in — the harness is ready, the first real run isn't done yet). See [`docs/requirements.md`](docs/requirements.md) for the full built-vs-open breakdown.
+Still open: exercising `GitHubAdapter`'s live PR-opening and trade-route paths against real repositories, the visualization layer (a separate stack — TypeScript/React), and measuring what a real free local model actually achieves on the evaluation harness (no Ollama installation was available in the environment this was built in — the harness is ready, the first real run isn't done yet). See [`docs/requirements.md`](docs/requirements.md) for the full built-vs-open breakdown.
 
 ## Running it
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,mcp]"    # the free engine + MCP server, nothing paid
-pytest tests/ -v               # 57 tests, offline, no model required
+pytest tests/ -v               # 71 tests, offline, no model required
 
 # to actually run the agents against a real model:
 ollama pull llama3.1           # once — the free local path
