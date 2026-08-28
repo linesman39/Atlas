@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import fnmatch
 
+from atlas.storage import sanitize_path_component
+
 CodeownersRule = tuple[str, list[str]]
 
 
@@ -51,7 +53,10 @@ def owners_for_path(rules: list[CodeownersRule], path: str) -> list[str]:
 
 def owners_for_fact(rules: list[CodeownersRule], fact_subject: str, facts_dir: str = "facts") -> list[str]:
     """A fact has no inherent file path — map it to the same synthetic
-    path GitHubAdapter.propose_annexation writes it under, so routing
-    matches what the PR will actually touch."""
-    synthetic_path = f"{facts_dir}/{fact_subject.lower().replace(' ', '-')}.md"
+    path GitHubAdapter.propose_annexation writes it under (subject
+    sanitized the same way as storage.slug_for_fact, minus the id, since
+    a fact's real filename ends in -<id>.md and CODEOWNERS rules match
+    this prefix via a glob), so routing matches what the PR will
+    actually touch."""
+    synthetic_path = f"{facts_dir}/{sanitize_path_component(fact_subject)}.md"
     return owners_for_path(rules, synthetic_path)

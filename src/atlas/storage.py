@@ -18,9 +18,20 @@ from atlas.models import Fact
 _FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
 
 
-def _slug(fact: Fact) -> str:
-    raw = f"{fact.subject}-{fact.id}"
-    return re.sub(r"[^a-z0-9]+", "-", raw.lower()).strip("-")
+def sanitize_path_component(text: str) -> str:
+    """Strip everything but alphanumerics before text becomes part of a
+    filesystem or URL path. The one sanitizer every module that turns a
+    Fact's subject into a path (this module, the GitHub adapter,
+    CODEOWNERS routing) shares — so a subject like '../../etc/passwd'
+    can never escape the directory it's written into, and the same
+    subject always sanitizes to the same prefix everywhere it's used.
+    See SECURITY.md.
+    """
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def slug_for_fact(fact: Fact) -> str:
+    return sanitize_path_component(f"{fact.subject}-{fact.id}")
 
 
 def fact_to_markdown(fact: Fact) -> str:
@@ -55,7 +66,7 @@ def markdown_to_fact(text: str) -> Fact:
 
 def write_fact(fact: Fact, directory: Path) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / f"{_slug(fact)}.md"
+    path = directory / f"{slug_for_fact(fact)}.md"
     path.write_text(fact_to_markdown(fact), encoding="utf-8")
     return path
 

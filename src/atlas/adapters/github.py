@@ -18,7 +18,7 @@ from __future__ import annotations
 from atlas.adapters.base import AnnexationHandle, SubstrateAdapter
 from atlas.codeowners import owners_for_fact, parse_codeowners
 from atlas.models import AnnexationRequest, AnnexationVerdict, Fact
-from atlas.storage import fact_to_markdown, read_all_facts
+from atlas.storage import fact_to_markdown, read_all_facts, slug_for_fact
 
 _CODEOWNERS_PATHS = ("CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS")
 
@@ -118,7 +118,7 @@ class GitHubAdapter(SubstrateAdapter):
         base_sha = self._repo.get_branch(default_branch).commit.sha
         self._repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=base_sha)
 
-        path = f"{self._facts_dir}/{request.fact.subject.lower().replace(' ', '-')}-{request.fact.id}.md"
+        path = f"{self._facts_dir}/{slug_for_fact(request.fact)}.md"
         content = fact_to_markdown(request.fact)
         self._repo.create_file(
             path=path,
@@ -203,7 +203,7 @@ class GitHubAdapter(SubstrateAdapter):
         base_sha = fork.get_branch(default_branch).commit.sha
         fork.create_git_ref(ref=f"refs/heads/{branch_name}", sha=base_sha)
 
-        path = f"{self._facts_dir}/{fact.subject.lower().replace(' ', '-')}-{fact.id}.md"
+        path = f"{self._facts_dir}/{slug_for_fact(fact)}.md"
         fork.create_file(
             path=path,
             message=format_trade_route_pr_title(fact),

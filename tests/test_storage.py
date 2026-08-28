@@ -52,3 +52,13 @@ def test_read_all_facts_on_missing_directory_returns_empty(tmp_path: Path):
 def test_markdown_to_fact_rejects_content_without_frontmatter():
     with pytest.raises(ValueError, match="missing YAML frontmatter"):
         markdown_to_fact("# Just a heading\n\nNo frontmatter here at all.\n")
+
+
+def test_malicious_subject_cannot_escape_the_chart_directory(tmp_path: Path):
+    # See SECURITY.md -- a subject is untrusted input and must never
+    # become a raw path component.
+    fact = Fact(subject="../../../etc/passwd", scope="y", claim="malicious subject", value="x")
+    path = write_fact(fact, tmp_path)
+    assert path.parent == tmp_path  # written inside the Chart dir, nowhere else
+    assert ".." not in path.name
+    assert "/" not in path.name

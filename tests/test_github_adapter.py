@@ -89,7 +89,7 @@ def _bare_adapter(repo, facts_dir: str = "facts") -> GitHubAdapter:
 
 def test_codeowners_review_requested_when_owner_found():
     repo = MagicMock()
-    repo.get_contents.return_value.decoded_content = b"/facts/library:redis* @my-org/security-team\n"
+    repo.get_contents.return_value.decoded_content = b"/facts/library-redis* @my-org/security-team\n"
     pr = MagicMock()
 
     adapter = _bare_adapter(repo)
@@ -122,7 +122,7 @@ def test_codeowners_review_skipped_when_no_owner_matches():
 
 def test_codeowners_review_requests_individual_reviewer():
     repo = MagicMock()
-    repo.get_contents.return_value.decoded_content = b"/facts/library:redis* @alice\n"
+    repo.get_contents.return_value.decoded_content = b"/facts/library-redis* @alice\n"
     pr = MagicMock()
 
     adapter = _bare_adapter(repo)
@@ -133,7 +133,7 @@ def test_codeowners_review_requests_individual_reviewer():
 
 def test_codeowners_review_failure_does_not_raise():
     repo = MagicMock()
-    repo.get_contents.return_value.decoded_content = b"/facts/library:redis* @my-org/security-team\n"
+    repo.get_contents.return_value.decoded_content = b"/facts/library-redis* @my-org/security-team\n"
     pr = MagicMock()
     pr.create_review_request.side_effect = RuntimeError("not a valid reviewer")
 
