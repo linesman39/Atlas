@@ -1,73 +1,60 @@
-# Atlas — Project Definition
+# Atlas — Project Definition (locked)
+
+This is the scoped, judged submission. For the unscoped ambition this draws from, see `docs/vision.md`. For the vocabulary used throughout, see `docs/lexicon.md`.
 
 ## One-line
 
-A verified, layered context map for AI coding-agent work — **session → codebase → workspace** — that gates what gets promoted to durable memory and hands a human-legible bootstrap brief to whoever resumes the work next.
+A team of agents that takes Field Notes on a live coding session, ground-truths what's worth keeping, and annexes it — through human-approved, pull-request-style sign-off — into a Chart (one repository's durable memory) and, from there, into the Atlas (a workspace's memory across repositories). The deliverable a person actually reads is the Chart/Atlas itself and an Expedition Briefing at handoff, not a black-box vector store.
 
 ## Who has this problem
 
-A developer (or team) running long or repeated coding-agent sessions (Claude Code-style) on one or more repositories over time.
+A developer or team running long or repeated coding-agent sessions (Claude Code-style) on one or more repositories over time.
 
-## The bottleneck, at three levels
+## The bottleneck, at three tiers
 
-1. **Session level — context rot.** As a session grows, the harness compresses old turns to stay in-window. Compression is lossy: a constraint stated early, a rejected approach, a decision that later gets contradicted can silently drop out. This is a documented, formalized phenomenon (Chroma's 2025 "context rot" research: every frontier model tested degrades as input grows, with facts buried mid-context hit hardest), not a one-off bug.
-2. **Codebase level — cross-session amnesia.** A fresh session on a repo it's worked on before gets only a static, hand-written `CLAUDE.md`. Whatever a previous session painfully learned ("don't use library X, it broke prod," "this module has a non-obvious invariant") doesn't automatically carry forward unless a memory layer captured it.
-3. **Workspace level — cross-repo blindness.** An agent working on repo B has no way to know a constraint or convention repo A's team already established. Multiple 2026 sources call this out explicitly as unsolved: *"workspace context and persistent memory are different things"* — no single context window or single-repo memory store holds both sides of a cross-repo dependency.
+1. **Field Notes tier — context rot.** As a session grows, the harness compresses old turns to stay in-window. Compression is lossy: a constraint stated early, a rejected approach, a decision that later gets contradicted can silently drop out. Documented and formalized (Chroma's 2025 "context rot" research: every frontier model tested degrades as input grows, worst when facts sit mid-context).
+2. **Chart tier — cross-session amnesia.** A fresh session on a repo it's worked before gets only a static, hand-written `CLAUDE.md`. Whatever a previous session painfully learned doesn't carry forward unless something explicitly charted it.
+3. **Atlas tier — cross-repo blindness.** An agent working on one repo has no way to know a constraint or convention another repo's team already established. Multiple 2026 sources call this out as unsolved (`docs/competitive-landscape.md`): "workspace context and persistent memory are different things."
 
-## Prior art (what already exists — do not rebuild)
+## Prior art and what Atlas differentiates on
 
-- **Tiered/self-editing memory**: Letta (MemGPT) — core/archival/recall memory, agent self-edits what it stores.
-- **Vector + graph memory layers**: Mem0 (vector-first, optional graph), Zep/Graphiti (temporal knowledge graph).
-- **Native coding-tool memory**: Claude Code's own auto-memory (writes learnings back to CLAUDE.md between sessions), Windsurf's Cascade Memories.
-- **Third-party memory MCP wrappers**: AgentMemory, Total Recall, kiro-memory, MemoryLake — all do "capture session → inject into next session."
-- **Contradiction/conflict detection in memory**: AtomMem and related systems already run LLM/NLI-based conflict checks before writing a fact. Relevant finding: *"Don't Ask the LLM to Track Freshness: A Deterministic Recipe for Memory Conflict Resolution"* (arXiv 2606.01435) argues pure LLM-judged freshness tracking is unreliable and proposes a deterministic resolution recipe instead.
-- **Evaluation methodology precedent**: LongMemEval-V2 (arXiv 2605.12493) evaluates long-term agent memory across five categories — static state recall, dynamic state tracking, workflow knowledge, environment gotchas, premise awareness — for web agents in customized environments.
+Full detail in `docs/competitive-landscape.md` (six systems, official sources only). Summary: single-session-to-persistent-memory is solved and crowded (Letta, Mem0, Zep, Claude Code's own auto memory, Windsurf Memories, several MCP wrappers). Two gaps held up after checking primary sources directly:
 
-**Conclusion**: single-session → persistent-memory is a solved, increasingly crowded problem. It is necessary plumbing for Atlas but not its contribution.
+1. **Only one of six systems reviewed (Zep/Graphiti) documents any contradiction-handling at write time.** The other five either accumulate without checking, defer to agent judgment with no stated check, or openly document arbitrary conflict resolution. Atlas's Cartographer is built specifically because this gap is real, not assumed.
+2. **None of the six document a cross-repository tier.** This is the Atlas tier's reason to exist — the clearest, most consistent gap in the landscape.
 
-## Where Atlas puts its actual engineering effort
+Atlas adds two further differentiators, chosen from the wider vision as the ones concrete and demoable enough to build and evidence within the hackathon:
 
-1. **A promotion gate, not a flat store.** Facts move Session → Codebase → Workspace only through an explicit verification step at each hop. A contradiction caught at session level is cheap; one that reaches workspace level poisons every future repo. The gate uses a deterministic/structured conflict check first, falling back to LLM judgment only for genuinely ambiguous cases — built and evaluated as an explicit iteration against a naive "just ask the LLM" version (kept in the changelog as a removed/superseded experiment).
-2. **The workspace tier.** This is the layer the field agrees is still open. Atlas builds it directly: a Workspace Archivist aggregating patterns/conflicts across multiple codebase-level maps.
-3. **A human-legible artifact, not a black box.** The deliverable is a readable map + a bootstrap brief generated on demand — not silent vector retrieval. This is what gets handed to the human at the single handoff point.
+3. **Ground-truthing, not assertion.** None of the six systems reviewed require a fact to be backed by reproducible evidence before it's stored — they store what an LLM extracted and said was true. Atlas's Cartographer refuses annexation without a linked artifact: a test result, a diff, a command's actual output.
+4. **Annexation-as-pull-request.** Since Charts and the Atlas are git-versioned, an annexation opens as an actual PR — diffable, commentable, approved or rejected by a Surveyor-General — using the review muscle a team already has instead of a bespoke approval UI.
 
-## Architecture
+## Architecture — the five roles
 
-- **Session Mapper** — extracts structured facts (decisions, constraints, files touched + why, rejected approaches, open questions) from the live session.
-- **Promotion Gate / Verifier** — checks new facts against existing ones at each promotion boundary (session→codebase, codebase→workspace); deterministic check first, LLM judgment for ambiguous cases; flags contradictions instead of silently overwriting.
-- **Codebase Archivist** — merges gate-approved durable facts into a persistent, versioned map stored in the repo, surviving past any single session.
-- **Workspace Archivist** — aggregates patterns and conflicts across multiple codebase-level maps.
-- **Handoff Agent** — on demand, compresses the map (not the raw transcript) into a bootstrap brief sized for whoever resumes next (human or fresh agent).
+- **Field Agent** — extracts structured Field Notes from the live session: decisions, constraints, files touched and why, abandoned expeditions, open questions.
+- **The Cartographer** — checks new Field Notes against the existing Chart/Atlas at each annexation boundary. Deterministic/structured conflict check first (per the finding in `docs/competitive-landscape.md` that pure LLM-judged freshness tracking is unreliable), LLM judgment reserved for genuinely ambiguous cases. Requires ground-truthing evidence before approving an annexation; flags border disputes instead of silently overwriting.
+- **Chart Keeper** — opens the annexation PR merging Cartographer-approved Field Notes into a repository's Chart; the durable, versioned, single-repository memory.
+- **Atlas Keeper** — opens the annexation PR aggregating patterns and border disputes across multiple Charts into the workspace's Atlas.
+- **Briefing Agent** — on demand, compresses the Chart/Atlas (not raw Field Notes) into an Expedition Briefing sized for whoever resumes next.
 
-Fully autonomous pipeline; the human's only touchpoint is reading/approving the final handoff artifact.
+Fully autonomous pipeline. The human's only touchpoint is the Surveyor-General's approval on an annexation PR, and reading the Expedition Briefing at handoff — no human does any of the extraction, verification, or drafting.
 
 ## Baseline
 
-Today's reality: a fresh session gets only the static, hand-written `CLAUDE.md` and none of the accumulated cross-session or cross-repo learning — no promotion, no verification, no cross-repo view. This doubles as both the brief's "manual process" and "simple script" baseline categories.
+Today's reality: a fresh session gets only the static, hand-written `CLAUDE.md` and none of the accumulated cross-session or cross-repo learning — no annexation, no ground-truthing, no cross-repo view. This covers both the brief's "manual process" and "simple script" baseline categories.
 
-Internal ablation baseline (for the changelog): a naive single-shot "ask the LLM if this contradicts anything" gate, replaced once the deterministic-first approach proves more reliable.
+Internal ablation baseline (for the changelog): a naive single-shot "ask the LLM if this contradicts anything" Cartographer, replaced once the deterministic-first approach proves more reliable — kept in the changelog as a removed/superseded experiment, per the brief's explicit request for iterations that were tried and dropped.
 
 ## Data & evaluation
 
-Fully synthetic multi-session, multi-repo transcripts (avoids any real/private session data — ground rules 7/8), seeded with facts at each tier plus intentional contradictions, using a category taxonomy adapted from LongMemEval-V2 (static facts, workflow knowledge, environment gotchas, premise awareness) for coding-agent sessions specifically.
+Fully synthetic multi-session, multi-repo transcripts (no real/private session data — ground rules 7/8), seeded with facts at each tier plus intentional border disputes, using a category taxonomy adapted from LongMemEval-V2 (static facts, workflow knowledge, environment gotchas, premise awareness) for coding-agent sessions specifically.
 
 **Primary metrics**:
 - % of seeded facts correctly recalled, per tier, baseline vs. Atlas.
-- Contradiction catch rate at the promotion gate (and false-promotion rate — bad facts that got promoted anyway).
-- Bootstrap-brief effectiveness: given only the brief, does a fresh agent avoid re-violating known constraints on a held-out task, vs. a fresh agent given only the static baseline `CLAUDE.md`.
+- Border-dispute catch rate at the Cartographer's gate (and false-annexation rate — bad facts that got annexed anyway).
+- Expedition Briefing effectiveness: given only the briefing, does a fresh agent avoid re-violating known constraints on a held-out task, vs. a fresh agent given only the static baseline `CLAUDE.md`.
+
+Chosen deliberately over borrowing a vendor-reported benchmark number: `docs/competitive-landscape.md` documents a live, unresolved dispute between Mem0 and Zep over whose numbers are correct, and a known flaw in the LOCOMO benchmark both cite. Self-controlled synthetic ground truth avoids inheriting either problem.
 
 ## Sources
 
-- [Context rot explained (& how to prevent it) — Redis](https://redis.io/blog/context-rot/)
-- [Context Rot: How Increasing Input Tokens Impacts LLM Performance — Chroma](https://www.trychroma.com/research/context-rot)
-- [Letta | Ry Walker Research](https://rywalker.com/research/letta)
-- [The AI Agent Memory Landscape in 2026 — Feather DB](https://www.getfeather.store/theory/ai-agent-memory-frameworks-landscape-2026)
-- [Mem0 vs Zep (Graphiti): AI Agent Memory Compared (2026)](https://vectorize.io/articles/mem0-vs-zep)
-- [Zep: A Temporal Knowledge Graph Architecture for Agent Memory (arXiv 2501.13956)](https://arxiv.org/abs/2501.13956)
-- [Windsurf Cascade Memories: Persist Context Across Sessions — MemNexus](https://memnexus.ai/blog/2026-02-20-windsurf-persistent-memory)
-- [How Claude remembers your project — Claude Code Docs](https://code.claude.com/docs/en/memory)
-- [Don't Ask the LLM to Track Freshness: A Deterministic Recipe for Memory Conflict Resolution (arXiv 2606.01435)](https://arxiv.org/pdf/2606.01435)
-- [AtomMem: Building Simple and Effective Memory System for LLM Agents via Atomic Facts (arXiv 2606.19847)](https://arxiv.org/pdf/2606.19847)
-- [Large-Repo Coding Agent Memory Bottleneck (June 2026) — Supermemory](https://supermemory.ai/blog/memory-bottleneck-large-repo-coding-agents/)
-- [Remember Your Trace: Memory-Guided Long-Horizon Agentic Framework (arXiv 2605.14563)](https://arxiv.org/pdf/2605.14563)
-- [LongMemEval-V2: Evaluating Long-Term Agent Memory (arXiv 2605.12493)](https://arxiv.org/abs/2605.12493)
+See `docs/competitive-landscape.md` for the full source list underpinning the prior-art and differentiation claims above.
