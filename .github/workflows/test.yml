@@ -13,5 +13,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev]"
+      # dev + mcp: the test suite covers the MCP server too (in-process,
+      # via server.call_tool — no live transport, no live model). github
+      # and claude stay uninstalled here on purpose: CI proves the tests
+      # that need them are the ones testing pure logic only (see
+      # tests/test_github_adapter.py), not that the extras work live.
+      - run: pip install -e ".[dev,mcp]"
       - run: pytest tests/ -v

@@ -8,7 +8,7 @@ default.
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from atlas.cartographer.deterministic import CheckResult, check_deterministic
 from atlas.cartographer.llm_escalation import escalate_to_llm
@@ -20,6 +20,11 @@ class CartographerDecision(BaseModel):
     verdict: AnnexationVerdict
     dispute: BorderDispute | None = None
     reason: str = ""
+    resolved_by: str = Field(
+        description='"no_evidence" | "deterministic" | "cartographer_llm" — which path decided this case, '
+        "whether or not it ended in a dispute. Lets the evaluation harness report how often the "
+        "expensive LLM path was actually needed (docs/requirements.md #2)."
+    )
 
 
 def evaluate(
@@ -32,12 +37,13 @@ def evaluate(
         return CartographerDecision(
             verdict=AnnexationVerdict.REJECTED_NO_EVIDENCE,
             reason="No evidence attached — see docs/requirements.md, Ground-truthing.",
+            resolved_by="no_evidence",
         )
 
     det = check_deterministic(candidate, existing_facts)
 
     if det.result == CheckResult.NO_CONFLICT:
-        return CartographerDecision(verdict=AnnexationVerdict.APPROVED, reason=det.reason)
+        return CartographerDecision(verdict=AnnexationVerdict.APPROVED, reason=det.reason, resolved_by="deterministic")
 
     matched = next(f for f in existing_facts if f.id == det.matched_fact_id)
 
@@ -48,7 +54,9 @@ def evaluate(
             reason=det.reason,
             detected_by="deterministic",
         )
-        return CartographerDecision(verdict=AnnexationVerdict.DISPUTED, dispute=dispute, reason=det.reason)
+        return CartographerDecision(
+            verdict=AnnexationVerdict.DISPUTED, dispute=dispute, reason=det.reason, resolved_by="deterministic"
+        )
 
     # AMBIGUOUS
     if not use_llm_escalation:
@@ -59,7 +67,10 @@ def evaluate(
             detected_by="deterministic",
         )
         return CartographerDecision(
-            verdict=AnnexationVerdict.DISPUTED, dispute=dispute, reason=det.reason + " (LLM escalation disabled)"
+            verdict=AnnexationVerdict.DISPUTED,
+            dispute=dispute,
+            reason=det.reason + " (LLM escalation disabled)",
+            resolved_by="deterministic",
         )
 
     llm_verdict = escalate_to_llm(candidate, matched, backend=backend)
@@ -70,5 +81,7 @@ def evaluate(
             reason=llm_verdict.reason,
             detected_by="cartographer_llm",
         )
-        return CartographerDecision(verdict=AnnexationVerdict.DISPUTED, dispute=dispute, reason=llm_verdict.reason)
-    return CartographerDecision(verdict=AnnexationVerdict.APPROVED, reason=llm_verdict.reason)
+        return CartographerDecision(
+            verdict=AnnexationVerdict.DISPUTED, dispute=dispute, reason=llm_verdict.reason, resolved_by="cartographer_llm"
+        )
+    return CartographerDecision(verdict=AnnexationVerdict.APPROVED, reason=llm_verdict.reason, resolved_by="cartographer_llm")

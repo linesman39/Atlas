@@ -23,8 +23,9 @@ dependencies = [
 # "git": see docs/architecture.md, "Engine vs. Application".
 github = ["PyGithub>=2.3"]
 claude = ["claude-agent-sdk>=0.2"]
+mcp = ["mcp>=2.0"]
 dev = ["pytest>=8.0"]
-all = ["atlas-map[github,claude,dev]"]
+all = ["atlas-map[github,claude,mcp,dev]"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -37,14 +37,16 @@ Atlas doesn't reuse git's terms (commit, branch, blame). It has its own, drawn f
 
 ## Status
 
-The Engine is built, tested, and working end to end: the data model, the Chart/Atlas storage format, the Cartographer's deterministic-first conflict check, and all three LLM-backed roles (the Field Agent, the Cartographer's escalation path, the Briefing Agent) — all running against a pluggable backend that defaults to a free local model. 37 tests pass, entirely offline, no live model or network call required (`tests/` uses a `FakeBackend` and mocked HTTP for the local backend's own tests). Application-layer pieces — the GitHub adapter's live PR-opening path, the MCP server, the visualization layer — are the next work; see [`docs/requirements.md`](docs/requirements.md) and [`docs/architecture.md`](docs/architecture.md).
+The Engine is built, tested, and working end to end: the data model, the Chart/Atlas storage format, the Cartographer's deterministic-first conflict check, all three LLM-backed roles (Field Agent, the Cartographer's escalation path, Briefing Agent), local adapter-free annexation, an evaluation harness with hand-labeled fixtures, and an MCP server exposing all of it as four tools — all running against a pluggable backend that defaults to a free local model. **57 tests pass, entirely offline, no live model, no network call, no cost to run.** Confirmed to install and pass this way from a genuinely clean environment (`pip install -e ".[dev,mcp]"` only — no GitHub or Claude extras).
+
+Still open: exercising `GitHubAdapter`'s live PR-opening path against a real repository, the visualization layer, and measuring what a real free local model actually achieves on the evaluation harness (no Ollama installation was available in the environment this was built in — the harness is ready, the first real run isn't done yet). See [`docs/requirements.md`](docs/requirements.md) for the full built-vs-open breakdown.
 
 ## Running it
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"        # the free engine only
-pytest tests/ -v               # 37 tests, offline, no model required
+pip install -e ".[dev,mcp]"    # the free engine + MCP server, nothing paid
+pytest tests/ -v               # 57 tests, offline, no model required
 
 # to actually run the agents against a real model:
 ollama pull llama3.1           # once — the free local path
@@ -56,6 +58,12 @@ ATLAS_LLM_BACKEND=claude python3 scripts/live_smoke_test.py
 
 # to enable GitHub annexation (optional, application-layer):
 pip install -e ".[github]"
+
+# to run the evaluation harness (writes results/eval_report.{json,md}):
+python3 -m atlas.eval.run
+
+# to run the MCP server (stdio transport):
+python3 -m atlas.mcp_server
 ```
 
 ## License
