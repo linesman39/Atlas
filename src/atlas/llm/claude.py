@@ -25,7 +25,7 @@ class ClaudeBackend(LLMBackend):
             import claude_agent_sdk  # noqa: F401
         except ImportError as exc:
             raise ImportError(
-                "ClaudeBackend requires the optional 'claude' extra: pip install 'atlas-map[claude]'. "
+                "ClaudeBackend requires the optional 'claude' extra: pip install 'atlas-cartographer[claude]'. "
                 "The engine works without it — see docs/architecture.md, 'Engine vs. Application'."
             ) from exc
         self.max_budget_usd = max_budget_usd

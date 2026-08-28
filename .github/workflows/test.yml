@@ -13,10 +13,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      # dev + mcp: the test suite covers the MCP server too (in-process,
-      # via server.call_tool — no live transport, no live model). github
-      # and claude stay uninstalled here on purpose: CI proves the tests
-      # that need them are the ones testing pure logic only (see
-      # tests/test_github_adapter.py), not that the extras work live.
-      - run: pip install -e ".[dev,mcp]"
+      # dev + mcp + github: the MCP server tests run in-process (no live
+      # transport, no live model). The GitHub adapter tests (CODEOWNERS
+      # routing, PR formatting) use PyGithub's own exception/mock types
+      # but never call the real API or need a token -- github is needed
+      # here to construct those types, not to reach github.com. claude
+      # stays uninstalled: nothing in the suite needs a live model.
+      - run: pip install -e ".[dev,mcp,github]"
       - run: pytest tests/ -v

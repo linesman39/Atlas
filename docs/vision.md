@@ -1,6 +1,6 @@
 # Atlas — Vision
 
-This document is the north star, not the hackathon build spec. It is intentionally not scoped down. See `docs/requirements.md` for what actually gets built, and `docs/project-definition.md` for the locked, judged submission.
+This document is the north star, not the build spec. It is intentionally not scoped down. See `docs/requirements.md` for what actually gets built, and `docs/project-definition.md` for the locked scope.
 
 ## The core claim
 
@@ -24,7 +24,7 @@ Taken all the way, this is a claim that Atlas isn't a memory add-on to the way s
 - **Agent → agent, across vendors**: a parent agent spawns a subagent, or a team moves from one coding agent to another mid-project — Atlas hands over the relevant slice so switching tools doesn't mean starting cold. Requires Atlas to be substrate-agnostic (exposed via MCP), not locked to one agent framework, unlike every system reviewed in `docs/competitive-landscape.md`.
 - **Person → person**: someone leaves, someone inherits an on-call incident — a real Expedition Briefing instead of tribal knowledge trapped in one head or six months of Slack.
 - **Function → function**: hand security only the security-relevant slice of the Atlas; hand compliance only what compliance needs.
-- **Org → org, via a trade route**: the acquisition-due-diligence case — a mature Atlas *is* a verified, evidence-linked account of what a codebase actually is, answering the hackathon brief's own example question ("is this repository actually good?") directly, because the answer was already being assembled continuously rather than produced once for the sale.
+- **Org → org, via a trade route**: the acquisition-due-diligence case — a mature Atlas *is* a verified, evidence-linked account of what a codebase actually is, directly answering "is this repository actually good?" because the answer was already being assembled continuously rather than produced once for the sale.
 
 ## Beyond memory — what Atlas offers once it's infrastructure, not a feature
 
@@ -35,6 +35,6 @@ Taken all the way, this is a claim that Atlas isn't a memory add-on to the way s
 - **A what-if simulator.** Before a risky change, an agent queries the Atlas: has anything like this been tried anywhere in the workspace, and what happened? Every agent gets the collective failure memory of every agent before it.
 - **Ask-the-Atlas, in plain language.** Any teammate asks "why do we do it this way" and gets an answer traced to the Legend, instead of doing archaeology through git blame and old Slack threads.
 
-## What's deliberately not in the hackathon build
+## What's deliberately not built yet
 
-Visualization UI, cross-agent MCP interoperability, cross-org trade routes, and autonomous weathering re-verification are all real ambitions here, not filler — but building all of them would violate the brief's own judging note that "purposeful choices matter more than the number of components." The hackathon build proves the hardest, most defensible part of this vision (ground-truthed annexation with human sign-off, across the session→Chart→Atlas tiers) and states the rest as the stated direction, not a claimed feature. See `docs/requirements.md` for exactly what's in and out.
+The MCP server, trade routes, and weathering are real, tested code now, not just ambition — see `docs/requirements.md`. The one piece of this vision still entirely unbuilt is the visualization UI: a genuinely separate stack (TypeScript/React/deck.gl), not more of the same Python that everything else is. Purposeful sequencing, not scope-avoidance: the hardest, most defensible part of this vision (ground-truthed annexation with human sign-off, across the session→Chart→Atlas tiers, plus weathering, trade routes, and Ask-the-Atlas) was built first. See `docs/requirements.md` for exactly what's in and out.

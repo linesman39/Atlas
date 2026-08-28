@@ -99,3 +99,47 @@ def test_get_briefing_tool_uses_human_prompt_by_default(tmp_path):
     text = json.loads(result.content[0].text) if result.content[0].text.startswith('"') else result.content[0].text
     assert "briefing" in text.lower()
     assert "fresh coding agent" not in fake.calls[0][0]  # human prompt, not the agent one
+
+
+def test_get_briefing_tool_uses_agent_prompt_when_requested(tmp_path):
+    atlas.llm._cached_default = ScriptedBackend([])
+    _call(
+        "propose_annexation",
+        {
+            "chart_dir": str(tmp_path),
+            "subject": "db_engine",
+            "scope": "repo:a",
+            "claim": "Uses Postgres.",
+            "value": "postgres",
+            "evidence_reference": "abc123",
+            "evidence_summary": "migration diff",
+        },
+    )
+    fake = ScriptedBackend(["- constraint: uses Postgres"])
+    atlas.llm._cached_default = fake
+    _call("get_briefing", {"chart_dir": str(tmp_path), "audience": "agent"})
+    assert "fresh coding agent" in fake.calls[0][0]
+
+
+def test_ask_the_atlas_tool(tmp_path):
+    atlas.llm._cached_default = ScriptedBackend([])
+    _call(
+        "propose_annexation",
+        {
+            "chart_dir": str(tmp_path),
+            "subject": "db_engine",
+            "scope": "repo:a",
+            "claim": "Uses Postgres.",
+            "value": "postgres",
+            "evidence_reference": "abc123",
+            "evidence_summary": "migration diff",
+        },
+    )
+    fact_id_query = json.loads(_call("query_chart", {"chart_dir": str(tmp_path)}).content[0].text)["id"]
+
+    fake = ScriptedBackend([f'{{"answer": "Postgres.", "cited_fact_ids": ["{fact_id_query}"]}}'])
+    atlas.llm._cached_default = fake
+    result = _call("ask_the_atlas", {"chart_dir": str(tmp_path), "question": "what database?"})
+    payload = json.loads(result.content[0].text)
+    assert payload["answer"] == "Postgres."
+    assert payload["cited_fact_ids"] == [fact_id_query]

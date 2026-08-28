@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from atlas.models import EvidenceKind, EvidenceRef, Fact
 from atlas.storage import build_index, markdown_to_fact, read_all_facts, write_fact, write_index
 
@@ -41,3 +43,12 @@ def test_index_flags_missing_evidence():
     ungrounded = Fact(subject="library:foo", scope="global", claim="Some claim with no evidence.")
     index = build_index([ungrounded], title="The Atlas")
     assert "NO EVIDENCE" in index
+
+
+def test_read_all_facts_on_missing_directory_returns_empty(tmp_path: Path):
+    assert read_all_facts(tmp_path / "does-not-exist") == []
+
+
+def test_markdown_to_fact_rejects_content_without_frontmatter():
+    with pytest.raises(ValueError, match="missing YAML frontmatter"):
+        markdown_to_fact("# Just a heading\n\nNo frontmatter here at all.\n")

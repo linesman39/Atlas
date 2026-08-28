@@ -1,6 +1,6 @@
 # Atlas — Project Definition (locked)
 
-This is the scoped, judged submission. For the unscoped ambition this draws from, see `docs/vision.md`. For the vocabulary used throughout, see `docs/lexicon.md`.
+This is the locked project scope. For the unscoped ambition this draws from, see `docs/vision.md`. For the vocabulary used throughout, see `docs/lexicon.md`. For what's actually built versus still open, see `docs/requirements.md`.
 
 ## One-line
 
@@ -23,7 +23,7 @@ Full detail in `docs/competitive-landscape.md` (six systems, official sources on
 1. **Only one of six systems reviewed (Zep/Graphiti) documents any contradiction-handling at write time.** The other five either accumulate without checking, defer to agent judgment with no stated check, or openly document arbitrary conflict resolution. Atlas's Cartographer is built specifically because this gap is real, not assumed.
 2. **None of the six document a cross-repository tier.** This is the Atlas tier's reason to exist — the clearest, most consistent gap in the landscape.
 
-Atlas adds two further differentiators, chosen from the wider vision as the ones concrete and demoable enough to build and evidence within the hackathon:
+Atlas adds two further differentiators, chosen from the wider vision as the ones concrete and demoable enough to build and evidence first:
 
 3. **Ground-truthing, not assertion.** None of the six systems reviewed require a fact to be backed by reproducible evidence before it's stored — they store what an LLM extracted and said was true. Atlas's Cartographer refuses annexation without a linked artifact: a test result, a diff, a command's actual output.
 4. **Annexation-as-pull-request.** Since Charts and the Atlas are git-versioned, an annexation opens as an actual PR — diffable, commentable, approved or rejected by a Surveyor-General — using the review muscle a team already has instead of a bespoke approval UI.
@@ -40,13 +40,13 @@ Fully autonomous pipeline. The human's only touchpoint is the Surveyor-General's
 
 ## Baseline
 
-Today's reality: a fresh session gets only the static, hand-written `CLAUDE.md` and none of the accumulated cross-session or cross-repo learning — no annexation, no ground-truthing, no cross-repo view. This covers both the brief's "manual process" and "simple script" baseline categories.
+Today's reality: a fresh session gets only the static, hand-written `CLAUDE.md` and none of the accumulated cross-session or cross-repo learning — no annexation, no ground-truthing, no cross-repo view. That's the manual-process baseline Atlas is measured against.
 
-Internal ablation baseline (for the changelog): a naive single-shot "ask the LLM if this contradicts anything" Cartographer, replaced once the deterministic-first approach proves more reliable — kept in the changelog as a removed/superseded experiment, per the brief's explicit request for iterations that were tried and dropped.
+Internal ablation baseline (for the changelog): a naive single-shot "ask the LLM if this contradicts anything" Cartographer, replaced once the deterministic-first approach proves more reliable — kept in the changelog as a removed/superseded experiment, a record of what was tried and dropped, not only what worked.
 
 ## Data & evaluation
 
-Fully synthetic multi-session, multi-repo transcripts (no real/private session data — ground rules 7/8), seeded with facts at each tier plus intentional border disputes, using a category taxonomy adapted from LongMemEval-V2 (static facts, workflow knowledge, environment gotchas, premise awareness) for coding-agent sessions specifically.
+Fully synthetic multi-session, multi-repo transcripts (no real or private session data, by construction — see `docs/privacy.md`), seeded with facts at each tier plus intentional border disputes, using a category taxonomy adapted from LongMemEval-V2 (static facts, workflow knowledge, environment gotchas, premise awareness) for coding-agent sessions specifically.
 
 **Primary metrics**:
 - % of seeded facts correctly recalled, per tier, baseline vs. Atlas.

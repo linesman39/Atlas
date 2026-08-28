@@ -16,8 +16,11 @@ GITHUB_TOKEN happens to be in the environment.
 from __future__ import annotations
 
 from atlas.adapters.base import AnnexationHandle, SubstrateAdapter
+from atlas.codeowners import owners_for_fact, parse_codeowners
 from atlas.models import AnnexationRequest, AnnexationVerdict, Fact
 from atlas.storage import fact_to_markdown, read_all_facts
+
+_CODEOWNERS_PATHS = ("CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS")
 
 
 def format_annexation_pr_title(request: AnnexationRequest) -> str:
@@ -102,7 +105,7 @@ class GitHubAdapter(SubstrateAdapter):
             from github import Github
         except ImportError as exc:
             raise ImportError(
-                "GitHubAdapter requires the optional 'github' extra: pip install 'atlas-map[github]'. "
+                "GitHubAdapter requires the optional 'github' extra: pip install 'atlas-cartographer[github]'. "
                 "The engine works without it — see docs/architecture.md, 'Engine vs. Application'."
             ) from exc
         self._client = Github(token)
@@ -130,7 +133,46 @@ class GitHubAdapter(SubstrateAdapter):
             head=branch_name,
             base=default_branch,
         )
+        self._request_codeowners_review(pr, request.fact)
         return AnnexationHandle(url=pr.html_url, is_open=True)
+
+    def _request_codeowners_review(self, pr, fact: Fact) -> None:
+        """Route the annexation PR to the accountable Surveyor-General via
+        CODEOWNERS, reusing GitHub's own reviewer-assignment API instead
+        of a bespoke routing system (docs/architecture.md, "Committed
+        beyond the original core"). Silently does nothing if the repo has
+        no CODEOWNERS file or the owners it names aren't valid
+        reviewers — a missing or partial CODEOWNERS setup should never
+        block the annexation itself, only skip the convenience of
+        auto-routing it."""
+        from github.GithubException import UnknownObjectException
+
+        content = None
+        for path in _CODEOWNERS_PATHS:
+            try:
+                content = self._repo.get_contents(path).decoded_content.decode("utf-8")
+                break
+            except UnknownObjectException:
+                continue
+        if content is None:
+            return
+
+        rules = parse_codeowners(content)
+        owners = owners_for_fact(rules, fact.subject, facts_dir=self._facts_dir)
+        if not owners:
+            return
+
+        individuals = [o.lstrip("@") for o in owners if "/" not in o]
+        teams = [o.lstrip("@").split("/", 1)[1] for o in owners if "/" in o]
+        try:
+            if individuals or teams:
+                pr.create_review_request(reviewers=individuals or None, team_reviewers=teams or None)
+        except Exception:
+            # A named owner might not actually have push access to this
+            # repo, or a team slug might not resolve -- routing is a
+            # convenience layered on top of a real, already-open PR, not
+            # something that should make annexation itself fail.
+            pass
 
     def is_approved(self, handle: AnnexationHandle) -> bool:
         pr_number = int(handle.url.rstrip("/").rsplit("/", 1)[-1])

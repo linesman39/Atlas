@@ -1,4 +1,7 @@
+from unittest.mock import MagicMock
+
 import pytest
+from github.GithubException import UnknownObjectException
 
 from atlas.adapters.github import (
     GitHubAdapter,
@@ -74,3 +77,65 @@ def test_propose_trade_route_refuses_unshareable_fact():
     adapter = GitHubAdapter.__new__(GitHubAdapter)  # skip __init__, no real token/repo needed for this guard
     with pytest.raises(ValueError, match="not marked shareable"):
         adapter.propose_trade_route(fact, "some-org/some-repo")
+
+
+def _bare_adapter(repo, facts_dir: str = "facts") -> GitHubAdapter:
+    adapter = GitHubAdapter.__new__(GitHubAdapter)
+    adapter._client = MagicMock()
+    adapter._repo = repo
+    adapter._facts_dir = facts_dir
+    return adapter
+
+
+def test_codeowners_review_requested_when_owner_found():
+    repo = MagicMock()
+    repo.get_contents.return_value.decoded_content = b"/facts/library:redis* @my-org/security-team\n"
+    pr = MagicMock()
+
+    adapter = _bare_adapter(repo)
+    adapter._request_codeowners_review(pr, _grounded_fact())
+
+    pr.create_review_request.assert_called_once_with(reviewers=None, team_reviewers=["security-team"])
+
+
+def test_codeowners_review_skipped_when_no_codeowners_file():
+    repo = MagicMock()
+    repo.get_contents.side_effect = UnknownObjectException(404, "not found", None)
+    pr = MagicMock()
+
+    adapter = _bare_adapter(repo)
+    adapter._request_codeowners_review(pr, _grounded_fact())  # must not raise
+
+    pr.create_review_request.assert_not_called()
+
+
+def test_codeowners_review_skipped_when_no_owner_matches():
+    repo = MagicMock()
+    repo.get_contents.return_value.decoded_content = b"/facts/billing-* @billing-team\n"
+    pr = MagicMock()
+
+    adapter = _bare_adapter(repo)
+    adapter._request_codeowners_review(pr, _grounded_fact())  # subject is library:redis, no match
+
+    pr.create_review_request.assert_not_called()
+
+
+def test_codeowners_review_requests_individual_reviewer():
+    repo = MagicMock()
+    repo.get_contents.return_value.decoded_content = b"/facts/library:redis* @alice\n"
+    pr = MagicMock()
+
+    adapter = _bare_adapter(repo)
+    adapter._request_codeowners_review(pr, _grounded_fact())
+
+    pr.create_review_request.assert_called_once_with(reviewers=["alice"], team_reviewers=None)
+
+
+def test_codeowners_review_failure_does_not_raise():
+    repo = MagicMock()
+    repo.get_contents.return_value.decoded_content = b"/facts/library:redis* @my-org/security-team\n"
+    pr = MagicMock()
+    pr.create_review_request.side_effect = RuntimeError("not a valid reviewer")
+
+    adapter = _bare_adapter(repo)
+    adapter._request_codeowners_review(pr, _grounded_fact())  # must swallow the error, not propagate

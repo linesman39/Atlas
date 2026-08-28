@@ -37,3 +37,10 @@ def test_owners_for_fact_maps_subject_to_synthetic_path():
     rules = parse_codeowners(SAMPLE)
     owners = owners_for_fact(rules, fact_subject="security-token-rotation")
     assert owners == ["@security-team"]
+
+
+def test_malformed_line_with_no_owners_is_skipped():
+    # A pattern with no owner listed isn't valid CODEOWNERS syntax --
+    # must be silently skipped, not crash or produce an empty-owners rule.
+    rules = parse_codeowners("/facts/orphaned-*\n* @default-owner\n")
+    assert rules == [("*", ["@default-owner"])]

@@ -1,0 +1,46 @@
+name: weathering
+
+# Re-verifies a Chart's evidence on a schedule (docs/architecture.md,
+# "Weathering — not a new agent, the Cartographer's evidence discipline
+# on a schedule"). This workflow is a *template*: it's disabled by
+# default (no `schedule:` trigger below is live, only `workflow_dispatch`
+# for a manual run) because a repo has to actually have a Chart directory
+# for this to do anything meaningful. Set CHART_DIR and re-enable the
+# schedule once your repo has one.
+
+on:
+  workflow_dispatch:
+    inputs:
+      chart_dir:
+        description: "Path to the Chart directory to re-verify"
+        required: true
+        default: "chart"
+  # Uncomment to run weekly once a real Chart directory exists:
+  # schedule:
+  #   - cron: "0 6 * * 1"
+
+jobs:
+  weather:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # weathering checks git object existence, needs full history
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .
+      - name: Re-verify Chart evidence
+        run: python3 -m atlas.weathering "${{ github.event.inputs.chart_dir || 'chart' }}" .
+      - name: Commit weathering updates
+        if: always()
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "atlas-weathering[bot]"
+            git config user.email "actions@github.com"
+            git add -A
+            git commit -m "Weathering: re-verify Chart evidence"
+            git push
+          else
+            echo "No changes to commit."
+          fi

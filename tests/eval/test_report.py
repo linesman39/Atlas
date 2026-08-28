@@ -15,6 +15,17 @@ def _cg(name, expected, predicted, detected_by="deterministic", cost=0.0, latenc
     )
 
 
+def test_empty_report_does_not_crash():
+    report = EvalReport(backend_name="local", field_agent_results=[], cartographer_results=[])
+    assert report.field_agent_mean_recall == 0.0
+    assert report.cartographer_accuracy == 0.0
+    assert report.border_dispute_catch_rate == 1.0  # vacuously true: nothing that should have conflicted was missed
+    assert report.false_annexation_rate == 0.0
+    assert report.total_cost_usd == 0.0
+    md = report.to_markdown()
+    assert "# Atlas Evaluation Report" in md
+
+
 def test_mean_recall():
     report = EvalReport(backend_name="local", field_agent_results=[_fa("a", 1.0), _fa("b", 0.5)], cartographer_results=[])
     assert report.field_agent_mean_recall == 0.75

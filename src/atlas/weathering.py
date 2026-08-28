@@ -94,3 +94,34 @@ def reverify_chart(chart_dir: Path, repo_root: Path) -> list[ReverificationResul
         write_index(read_all_facts(chart_dir), chart_dir, title="The Chart")
 
     return results
+
+
+def main() -> None:
+    """CLI entrypoint: `python -m atlas.weathering <chart_dir> <repo_root>`.
+    Intended to be run on a schedule (see .github/workflows/weathering.yml)
+    against a real Chart directory and a checkout of the repo its evidence
+    references."""
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="Re-verify a Chart's evidence and flag stale facts.")
+    parser.add_argument("chart_dir", type=Path, help="Directory containing the Chart's fact files.")
+    parser.add_argument("repo_root", type=Path, help="Checkout of the repo the evidence references.")
+    args = parser.parse_args()
+
+    results = reverify_chart(args.chart_dir, args.repo_root)
+    if not results:
+        print(f"No facts found in {args.chart_dir} — nothing to weather.")
+        return
+
+    stale = [r for r in results if not r.still_valid]
+    for r in results:
+        status = "OK" if r.still_valid else "STALE"
+        print(f"[{status}] {r.subject} ({r.fact_id}): {r.reason}")
+    print(f"\n{len(results)} fact(s) checked, {len(stale)} newly disputed.")
+    if stale:
+        sys.exit(1)  # non-zero exit so a CI job surfaces this as a failure worth looking at
+
+
+if __name__ == "__main__":
+    main()

@@ -29,7 +29,7 @@ This bridges `docs/project-definition.md` (locked scope) to the technology decis
 - Must be backend-agnostic: every LLM-backed role takes an injectable `LLMBackend`, never hardcodes a specific provider.
 - The default backend must incur zero cost and require no account or API key (`OllamaBackend`, talking to a local Ollama server over stdlib `urllib`).
 - A hosted backend must be available as an explicit opt-in, never silently used (`ClaudeBackend`, selected via `ATLAS_LLM_BACKEND=claude`, installed via the `claude` extra so the base package doesn't require it).
-- Engine dependencies (`pip install atlas-map`) must not pull in either PyGithub or claude-agent-sdk — both are optional extras.
+- Engine dependencies (`pip install atlas-cartographer`) must not pull in either PyGithub or claude-agent-sdk — both are optional extras.
 
 ### 6. Evaluation harness — ✅ built (`src/atlas/eval/`), one metric still open
 - Must generate or load synthetic scenarios with seeded ground-truth facts, including deliberately planted border disputes. Built as hand-authored fixtures (`eval/fixtures.py`) rather than LLM-generated, on purpose — see `eval/fixtures.py`'s docstring and `docs/project-definition.md`'s evaluation-integrity rationale.
@@ -57,9 +57,9 @@ This bridges `docs/project-definition.md` (locked scope) to the technology decis
 ### 10. Ask-the-Atlas — ✅ built (`src/atlas/ask.py`, exposed via MCP)
 - Answers a plain-language question using only the charted facts, and must cite the fact ids the answer relies on — ground-truthing enforced at query time, same discipline as at write time.
 
-### 11. CODEOWNERS-based Surveyor-General routing — ✅ built (`src/atlas/codeowners.py`)
+### 11. CODEOWNERS-based Surveyor-General routing — ✅ built and wired in (`src/atlas/codeowners.py`, `GitHubAdapter._request_codeowners_review`)
 - Parses a `CODEOWNERS` file and maps a fact's subject to the same synthetic path `GitHubAdapter` writes it under, so routing matches what an annexation PR actually touches. Implements the common CODEOWNERS patterns (exact paths, directory prefixes, globs) via `fnmatch`, not GitHub's full pattern grammar — stated as a scope limit, not silently assumed complete.
-- Not yet wired into `GitHubAdapter.propose_annexation` itself (i.e. an annexation PR doesn't yet auto-request the routed reviewer) — the routing logic is built and tested; connecting it to the live PR-open call is next.
+- Wired into `GitHubAdapter.propose_annexation`: every annexation PR now automatically requests review from the routed owner(s), individual or team, via GitHub's native reviewer-assignment API. A missing `CODEOWNERS` file, no matching owner, or a routed owner GitHub rejects as an invalid reviewer are all handled by skipping the auto-request silently — routing is a convenience layered on an already-open PR, never something that blocks the annexation itself. Tested with mocked PyGithub objects (`tests/test_github_adapter.py`) covering all four cases; the live API call itself is not exercised against a real repository, same caveat as the rest of `GitHubAdapter`.
 
 ### 12. Trade routes — ✅ built (`GitHubAdapter.propose_trade_route`), not live-tested
 - A fact must be marked `shareable=True` to be eligible — `propose_trade_route` refuses otherwise (tested). Reuses GitHub's own fork-and-PR cross-org contribution model rather than a bespoke sharing protocol: fork the target repo, branch, write the fact, open a PR back.
