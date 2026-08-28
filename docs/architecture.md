@@ -1,31 +1,42 @@
 # Atlas — Technology & Architecture
 
-The organizing principle across every layer: **the core never talks to a hosting or rendering system directly — it talks to an adapter.** GitHub is the first substrate adapter, not a dependency baked into the design; the map UI is a client of the same data model everything else uses, not a special case. This document commits to a real technology for every layer, including the ones a hackathon-scoped build wouldn't need — because Atlas is meant to outlive the hackathon.
+Two organizing principles, and everything else follows from them:
 
-## Core (hackathon-critical)
+1. **The core never talks to a hosting or rendering system directly — it talks to an adapter.** GitHub is the first substrate adapter, not a dependency baked into the design; the map UI is a client of the same data model everything else uses, not a special case.
+2. **Engine and Application are separate, the way git and GitHub are separate.** git costs nothing, needs no account, and runs entirely on your machine. GitHub is an optional, better-resourced, hosted service built on top of it — valuable, but never required to use git at all. Atlas draws the same line: the **Engine** (the data model, the Chart/Atlas storage, the Cartographer, and the LLM-backed agents running against a free local model) works completely offline, for $0, forever. The **Application** layer (GitHub-hosted annexation, the MCP integration surface, the visualization web app) is optional, built on top of the free engine, and adds convenience and collaboration — not capability the engine lacks.
+
+## The Engine — free, local, zero required dependencies on a paid service
 
 | Layer | Choice | Why |
 |---|---|---|
-| Language | Python 3.11+ | One language across agent orchestration, data model, and evaluation harness; most reproducible for judges and, later, contributors, running from a clean environment. |
-| Agent orchestration | Claude Agent SDK (Python) | The core roles (Field Agent, the Cartographer, Chart Keeper, Atlas Keeper, Briefing Agent) are built on the same primitives this project's own development session runs on. |
+| Language | Python 3.11+ | One language across the data model, the Cartographer, and the LLM layer. |
 | Data model | Pydantic v2 | Facts are typed records (subject, claim, scope, evidence reference, confidence, tier), not prose — required for the Cartographer's deterministic check to be possible at all. |
-| Storage format | Markdown + YAML frontmatter, one fact per file; a `CHART.md` / `ATLAS.md` index per tier | Modeled directly on Claude Code's own verified auto-memory pattern (`competitive-landscape.md`). Deliberately not a vector/graph DB (unlike Mem0, Zep, Cognee) — the requirement is diffable, git-native, human-legible, not semantic search at scale. |
-| Deterministic conflict check | Structured-field matching + `rapidfuzz`, no embeddings | Same subject/scope key with a contradictory value is flagged cheaply before any LLM is invoked — keeps "deterministic-first" honest. |
-| Substrate adapter | Abstract interface; `GitHubAdapter` is the first implementation | Chart Keeper and Atlas Keeper annex *through* this interface. Replacing or adding a hosting backend later is a second adapter, not a rewrite. |
-| Annexation mechanism | Real GitHub PRs via the GitHub API | Uses the review muscle a team already has; makes the human-approval ground rule concrete. |
-| Integration surface | MCP server, official `mcp` Python SDK | Any MCP client integrates, not just Claude Code — the concrete form of "substrate-agnostic on the agent side." |
-| Evaluation harness | Plain Python, single entrypoint (`python -m atlas.eval.run`) | Generates/loads synthetic scenarios, runs baseline vs. Atlas, emits the four required metrics. |
-| CI | GitHub Actions running the eval harness on every PR to Atlas's own repo | Dogfoods the same review discipline the annexation mechanism relies on. |
+| Storage format | Markdown + YAML frontmatter, one fact per file; a `CHART.md` / `ATLAS.md` index per tier | Modeled directly on Claude Code's own verified auto-memory pattern (`competitive-landscape.md`). Deliberately not a vector/graph DB (unlike Mem0, Zep, Cognee) — the requirement is diffable, git-native, human-legible, not semantic search at scale. Plain files, so the engine needs no database server either. |
+| Deterministic conflict check | Structured-field matching + `rapidfuzz`, no embeddings | Same subject/scope key with a contradictory value is flagged cheaply before any LLM is invoked — keeps "deterministic-first" honest, and needs no model at all for most cases. |
+| LLM layer | Pluggable `LLMBackend` interface (`src/atlas/llm/`); **`OllamaBackend` is the default** | The Field Agent, the Cartographer's escalation path, and the Briefing Agent all run against whatever backend they're given, defaulting to a free local model via Ollama over stdlib `urllib` — no key, no account, no third-party HTTP dependency even. `ClaudeBackend` exists as an *optional* backend (installed via the `claude` extra) for a user who wants a hosted model's quality and is willing to pay — never the default, never assumed available. Selected via `ATLAS_LLM_BACKEND` (`local` or `claude`). |
+| Packaging | `pip install atlas-map` pulls in only `pydantic`, `PyYAML`, `rapidfuzz` | PyGithub and claude-agent-sdk are optional extras (`[github]`, `[claude]`) — installing the base package gets you a fully working, free engine with zero paid-service dependencies pulled in at all. |
 
-## Committed beyond the hackathon
+**Cost finding worth keeping on record**: the Claude Agent SDK's default configuration loads a full skill/command/system-prompt set on every call — about $0.09 and ~22k cache-creation tokens overhead for a one-word reply. When `ClaudeBackend` is used, disabling `setting_sources`, `skills`, and default `tools`, and supplying a narrow system prompt, cuts that to ~$0.002 with no functional loss. Worth knowing even though it's not the default path, since it's the honest cost of the optional upgrade.
 
-**Weathering — not a new agent, the Cartographer on a schedule.** Re-verification of already-annexed facts (does the linked test still exist and pass, does the referenced code still exist) is the Cartographer invoked in a different mode via a scheduled GitHub Actions cron job, updating a `last_verified`/confidence field in the fact's frontmatter. Deliberately reusing the existing role instead of adding a sixth agent — the brief's own judging note that purposeful choices beat component count applies to Atlas's own design, not just the pitch.
+## The Application — optional, built on the Engine, the "GitHub" of the project
 
-**Trade routes — annexation across a repo boundary, not a new protocol.** A fact marked `shareable: true` by a Surveyor-General during annexation becomes eligible for export as a fork-and-PR into another org's Atlas, using GitHub's existing cross-org fork/PR federation rather than inventing a bespoke sharing protocol. Cross-org sharing is annexation with a wider audience, not a different mechanism.
+| Layer | Choice | Why |
+|---|---|---|
+| Substrate adapter | Abstract interface; `GitHubAdapter` is the first implementation, installed via the `github` extra | Chart Keeper and Atlas Keeper annex *through* this interface. Nothing in the Engine imports GitHub — a user who never installs the `github` extra can still run the Engine fully locally, annexing facts by hand (or a future native local adapter) with git alone. Replacing or adding a hosting backend later is a second adapter, not a rewrite. |
+| Annexation mechanism | Real GitHub PRs via the GitHub API | Uses the review muscle a team already has; makes the human-approval ground rule concrete. Entirely optional — a solo user's local Chart is just files in a folder. |
+| Integration surface | MCP server, official `mcp` Python SDK | Any MCP client integrates, not just Claude Code. |
+| Evaluation harness | Plain Python, single entrypoint (`python -m atlas.eval.run`) | Generates/loads synthetic scenarios, runs baseline vs. Atlas, emits the required metrics — runs entirely against the Engine, no Application-layer dependency needed to evaluate it. |
+| CI | GitHub Actions running the Engine's test suite on every push | The Engine's tests never require a live model or a GitHub token — see `tests/`, which use a `FakeBackend` and mocked HTTP for the local backend's own tests. |
 
-**Ask-the-Atlas — a query tool, not a second source of truth.** Exposed as an MCP tool and a chat surface in the visualization frontend: natural-language question in, structured retrieval over the Pydantic fact store out, Claude synthesizes the answer — and every answer must cite a Legend. No answer without provenance, enforcing ground-truthing at query time the same way it's enforced at write time.
+## Committed beyond today's build
 
-**CODEOWNERS-based Surveyor-General routing.** Annexation PRs parse the repo's existing `CODEOWNERS` (or a `.atlas/OWNERS.md` where fact categories don't map to file paths) and request review from the accountable human via GitHub's native reviewer-assignment API — reusing an existing primitive instead of building a custom routing system.
+**Weathering — not a new agent, the Cartographer on a schedule.** Re-verification of already-annexed facts (does the linked test still exist and pass, does the referenced code still exist) is the Cartographer invoked in a different mode via a scheduled job, updating a `last_verified`/confidence field in the fact's frontmatter. Deliberately reusing the existing role instead of adding a sixth agent.
+
+**Trade routes — annexation across a repo boundary, not a new protocol.** A fact marked `shareable: true` by a Surveyor-General during annexation becomes eligible for export as a fork-and-PR into another org's Atlas, using GitHub's existing cross-org fork/PR federation rather than inventing a bespoke sharing protocol.
+
+**Ask-the-Atlas — a query tool, not a second source of truth.** Exposed as an MCP tool and a chat surface in the visualization frontend: natural-language question in, structured retrieval over the Pydantic fact store out, the configured LLM backend synthesizes the answer — and every answer must cite a Legend. No answer without provenance, enforcing ground-truthing at query time the same way it's enforced at write time.
+
+**CODEOWNERS-based Surveyor-General routing.** Annexation PRs parse the repo's existing `CODEOWNERS` (or a `.atlas/OWNERS.md` where fact categories don't map to file paths) and request review from the accountable human via GitHub's native reviewer-assignment API.
 
 **Visualization layer**
 
@@ -34,8 +45,8 @@ The organizing principle across every layer: **the core never talks to a hosting
 | Frontend | TypeScript + React | Standard, ecosystem-wide compatibility with the rendering libraries below. |
 | Map rendering | deck.gl (WebGL) | Built for exactly this shape of problem — large-scale layered rendering with a geographic metaphor, arcs (trade routes), polygons (fault lines), heatmaps (weathering). |
 | Layout computation | D3 (`d3-force` for topology, `d3-delaunay`/Voronoi for territory tessellation) | Converts the actual knowledge graph's real structure into map geography — regions are computed from real clustering, not decorative. |
-| Serving layer | FastAPI (Python) | Parses the same markdown/YAML fact store the core already reads/writes; a `/history` endpoint replays `git log` for the time-lapse scrubber; a WebSocket endpoint pushes live fault-line and annexation events. |
+| Serving layer | FastAPI (Python) | Parses the same markdown/YAML fact store the Engine already reads/writes; a `/history` endpoint replays `git log` for the time-lapse scrubber; a WebSocket endpoint pushes live fault-line and annexation events. |
 | Client data fetching | TanStack Query | Standard caching/sync layer for the FastAPI endpoints. |
-| Self-hosting | Docker Compose bundling the FastAPI service and the built frontend | `docker compose up` is the adoption story — reproducibility extends past the hackathon into real deployment. |
+| Self-hosting | Docker Compose bundling the FastAPI service and the built frontend | `docker compose up` is the adoption story. |
 
-The visualization layer reads the same Chart/Atlas files the core agents write — it is a client of the data model, never a second copy of the truth.
+The visualization layer reads the same Chart/Atlas files the Engine writes — it is a client of the data model, never a second copy of the truth, and never required to use the Engine itself.

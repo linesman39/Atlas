@@ -1,37 +1,50 @@
 """The Field Agent (docs/project-definition.md, docs/requirements.md #1).
 
-Extracts structured FieldNotes from a live session transcript: decisions,
-constraints, files touched and why, abandoned expeditions, open
-questions. This is genuinely an LLM extraction task — it needs to read
-unstructured transcript segments and produce the typed FieldNote records
-in atlas.models.
+Extracts structured FieldNotes from a session transcript segment:
+decisions, constraints, rejected approaches, open questions. Deliberately
+conservative — instructed not to infer anything not explicitly stated,
+because everything it produces feeds into the Cartographer, and a
+hallucinated Field Note is the single easiest way to poison a Chart.
 
-Deliberately not implemented in this pass: it requires a live connection
-to the Claude Agent SDK (docs/architecture.md) and real session
-transcripts to build and evaluate against — neither of which exists yet
-in this repository. The interface below is the real contract; wiring it
-to the SDK is the next piece of work, tracked in docs/requirements.md.
+Runs against whatever LLMBackend it's given, defaulting to the engine's
+free local backend (atlas.llm.get_default_backend) — never assumes a
+paid API is available.
 """
 
 from __future__ import annotations
 
-from typing import Protocol
+from atlas.llm import LLMBackend, extract_json, get_default_backend
+from atlas.models import FieldNote, FieldNoteCategory
 
-from atlas.models import FieldNote
+_SYSTEM_PROMPT = """You are the Field Agent in the Atlas project: you take field notes on a coding-agent session in progress.
+
+Given a segment of a session transcript, extract every decision, constraint, rejected approach, and open question that is EXPLICITLY stated in it. Do not infer anything that isn't directly said. Do not invent details. If nothing worth recording appears, that's a correct and expected answer — don't manufacture content to fill the response.
+
+Reply with ONLY a JSON array, no prose, no code fences. Each element:
+{"category": "decision"|"constraint"|"rejected_approach"|"open_question", "content": "<one clear, self-contained sentence>"}
+
+Empty array if nothing qualifies: []
+"""
 
 
-class TranscriptSegment(Protocol):
-    """Whatever shape a session transcript chunk takes — left abstract
-    here so this module doesn't assume a specific harness's log format."""
-
-    ...
-
-
-def extract_field_notes(session_id: str, segment: TranscriptSegment) -> list[FieldNote]:
+def extract_field_notes(
+    session_id: str,
+    transcript_segment: str,
+    backend: LLMBackend | None = None,
+) -> list[FieldNote]:
     """Extract structured FieldNotes from one new segment of a session
-    transcript. Must run incrementally — see docs/requirements.md #1.
-    """
-    raise NotImplementedError(
-        "Field Agent extraction requires a live Claude Agent SDK connection. "
-        "See docs/architecture.md and docs/requirements.md #1."
-    )
+    transcript. Intended to be called incrementally as new segments
+    arrive, not on a full transcript replay each time."""
+    backend = backend or get_default_backend()
+    result = backend.complete(_SYSTEM_PROMPT, transcript_segment)
+    items = extract_json(result.text)
+    notes = []
+    for item in items:
+        notes.append(
+            FieldNote(
+                session_id=session_id,
+                category=FieldNoteCategory(item["category"]),
+                content=item["content"],
+            )
+        )
+    return notes

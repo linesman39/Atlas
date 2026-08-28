@@ -13,11 +13,18 @@ dependencies = [
     "pydantic>=2.6",
     "PyYAML>=6.0",
     "rapidfuzz>=3.6",
-    "PyGithub>=2.3",
 ]
 
 [project.optional-dependencies]
+# The engine (models, storage, the Cartographer, the local LLM backend)
+# needs only the core dependencies above and talks to Ollama over stdlib
+# urllib — no paid service, no extra install. Everything below is
+# application-layer, opt-in, the "GitHub" of this project rather than the
+# "git": see docs/architecture.md, "Engine vs. Application".
+github = ["PyGithub>=2.3"]
+claude = ["claude-agent-sdk>=0.2"]
 dev = ["pytest>=8.0"]
+all = ["atlas-map[github,claude,dev]"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -15,8 +15,6 @@ GITHUB_TOKEN happens to be in the environment.
 
 from __future__ import annotations
 
-from github import Github
-
 from atlas.adapters.base import AnnexationHandle, SubstrateAdapter
 from atlas.models import AnnexationRequest, AnnexationVerdict, Fact
 from atlas.storage import fact_to_markdown, read_all_facts
@@ -69,6 +67,13 @@ class GitHubAdapter(SubstrateAdapter):
     GitHub repository; annexation is a branch + PR against that repo."""
 
     def __init__(self, token: str, repo_full_name: str, facts_dir: str = "facts"):
+        try:
+            from github import Github
+        except ImportError as exc:
+            raise ImportError(
+                "GitHubAdapter requires the optional 'github' extra: pip install 'atlas-map[github]'. "
+                "The engine works without it — see docs/architecture.md, 'Engine vs. Application'."
+            ) from exc
         self._client = Github(token)
         self._repo = self._client.get_repo(repo_full_name)
         self._facts_dir = facts_dir

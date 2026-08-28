@@ -2,6 +2,8 @@
 
 A team of agents that turns what a coding-agent session learns into durable, ground-truthed, cross-repository memory — instead of letting it die with the session.
 
+**Free and local by default, the way git is free and local.** The engine — the data model, the Chart/Atlas storage, and every agent — runs entirely on your machine against a free local model (Ollama), no account and no API key required. GitHub integration and a hosted-model backend are optional upgrades you can turn on, the same way GitHub is an optional, paid, hosted layer built on top of git rather than something git itself needs. See `docs/architecture.md`, "Engine vs. Application."
+
 Every fact Atlas records has to survive proof before it's trusted, and proof before it's trusted twice — before it moves from one session's Field Notes into a repository's Chart, and again before it moves from a Chart into the shared Atlas across a whole workspace. Nothing gets promoted on an LLM's say-so alone.
 
 ## Why
@@ -35,14 +37,25 @@ Atlas doesn't reuse git's terms (commit, branch, blame). It has its own, drawn f
 
 ## Status
 
-Early. The core data model, the Chart/Atlas storage format, and the Cartographer's deterministic conflict check are built and tested (`src/atlas/`, `tests/`). The LLM-backed pieces — the Field Agent's extraction, the Cartographer's escalation path for ambiguous conflicts, the Briefing Agent — are real interfaces (`src/atlas/agents/`) not yet wired to a live model. See [`docs/requirements.md`](docs/requirements.md) for what's built versus what's next.
+The Engine is built, tested, and working end to end: the data model, the Chart/Atlas storage format, the Cartographer's deterministic-first conflict check, and all three LLM-backed roles (the Field Agent, the Cartographer's escalation path, the Briefing Agent) — all running against a pluggable backend that defaults to a free local model. 37 tests pass, entirely offline, no live model or network call required (`tests/` uses a `FakeBackend` and mocked HTTP for the local backend's own tests). Application-layer pieces — the GitHub adapter's live PR-opening path, the MCP server, the visualization layer — are the next work; see [`docs/requirements.md`](docs/requirements.md) and [`docs/architecture.md`](docs/architecture.md).
 
-## Running the tests
+## Running it
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-pytest tests/ -v
+pip install -e ".[dev]"        # the free engine only
+pytest tests/ -v               # 37 tests, offline, no model required
+
+# to actually run the agents against a real model:
+ollama pull llama3.1           # once — the free local path
+python3 scripts/live_smoke_test.py
+
+# or, for the optional hosted backend instead:
+pip install -e ".[claude]"
+ATLAS_LLM_BACKEND=claude python3 scripts/live_smoke_test.py
+
+# to enable GitHub annexation (optional, application-layer):
+pip install -e ".[github]"
 ```
 
 ## License
