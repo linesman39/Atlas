@@ -1,6 +1,6 @@
 # Atlas — Test Coverage
 
-Measured, not estimated: `pytest --cov=atlas --cov-report=term-missing`, 92 tests, 87% overall statement coverage. Reproduce it yourself:
+Measured, not estimated: `pytest --cov=atlas --cov-report=term-missing`, 93 tests, 88% overall statement coverage. Reproduce it yourself:
 
 ```bash
 pip install -e ".[dev,mcp,github]" pytest-cov

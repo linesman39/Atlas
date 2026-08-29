@@ -50,7 +50,7 @@ This shows up concretely in code: `src/atlas/adapters/github.py` and `src/atlas/
 | `docs/open-source.md` | License (Apache-2.0), governance, distribution, dependency license check. |
 | `docs/privacy.md` | What Atlas stores, where, what should never go in a Field Note. |
 | `docs/naming-considerations.md` | Real collision risk for "Atlas" as a name (MongoDB Atlas, ChatGPT Atlas, a near-identical MCP server already live) — researched, not decided. |
-| `docs/testing.md` | Measured coverage (87%, 100% on pure Engine logic), and an honest account of why some gaps exist. |
+| `docs/testing.md` | Measured coverage (88%, 100% on pure Engine logic), and an honest account of why some gaps exist. |
 | `CHANGELOG.md` | Keep-a-Changelog format, built from the actual git log. |
 | `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md` | Standard OSS scaffolding, written in the project's own voice (a contribution is a Survey — claim plus evidence). |
 
@@ -84,7 +84,7 @@ All of this is real, working code with passing tests — not scaffolding or stub
 
 **93 tests, all passing**, verified repeatedly in throwaway clean venvs matching CI's exact install profile (most recently `pip install -e ".[dev,mcp,github]"` — no PyGithub/claude-agent-sdk live credentials needed for any of it).
 
-**Measured coverage: 87% overall, 100% on every pure Engine-logic module.** The honest gaps, per `docs/testing.md`:
+**Measured coverage: 88% overall, 100% on every pure Engine-logic module.** The honest gaps, per `docs/testing.md`:
 - `adapters/github.py` (63%) and `llm/claude.py` (34%) — the uncovered lines are the actual live API calls, deliberately untested for the reason above.
 - `eval/run.py` (56%) and `weathering.py`'s CLI wrapper (72%) — both are genuinely exercised by real subprocess-based tests, but `coverage.py` doesn't track execution across a subprocess boundary, so they show as "missed" despite being tested. A tooling artifact, documented as such rather than left to look worse than it is.
 
@@ -125,7 +125,7 @@ git clone https://github.com/linesman39/Atlas && cd Atlas
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,mcp,github]"
 pytest tests/ -v                                                   # 93 tests, offline, ~2s
-pytest tests/ --cov=atlas --cov-report=term-missing                # 87% coverage (pytest-cov is in [dev])
+pytest tests/ --cov=atlas --cov-report=term-missing                # 88% coverage (pytest-cov is in [dev])
 pip install build twine && python3 -m build && twine check dist/*  # package builds, metadata valid
 ```
 
