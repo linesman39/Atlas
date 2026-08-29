@@ -47,3 +47,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# `tests.fakes` needs the repo root on sys.path under the plain `pytest`
+# console script (unlike `python -m pytest`, which adds the cwd itself).
+# The ini `pythonpath` setting did not resolve this on this project's
+# pytest version -- see the root conftest.py for the fix that did.
